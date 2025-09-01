@@ -14,16 +14,8 @@ import streamlit as st
 # OAuth 2.0 scopes for Google Calendar
 SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
 
-# OAuth client configuration (will be set up later)
-CLIENT_CONFIG = {
-    "web": {
-        "client_id": "your_client_id_here",
-        "client_secret": "your_client_secret_here",
-        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-        "token_uri": "https://oauth2.googleapis.com/token",
-        "redirect_uris": ["http://localhost:8501"]
-    }
-}
+# OAuth client configuration file
+CREDENTIALS_FILE = 'credentials.json'
 
 TOKEN_FILE = 'tokens.json'
 
@@ -84,10 +76,28 @@ class GoogleAuth:
         
         return self.credentials.valid
     
+    def load_client_config(self):
+        """Load OAuth client configuration from credentials file."""
+        if not os.path.exists(CREDENTIALS_FILE):
+            st.error(f"Credentials file '{CREDENTIALS_FILE}' not found. Please follow the setup guide.")
+            return None
+        
+        try:
+            with open(CREDENTIALS_FILE, 'r') as f:
+                import json
+                return json.load(f)
+        except Exception as e:
+            st.error(f"Error loading credentials file: {e}")
+            return None
+    
     def get_authorization_url(self):
         """Get OAuth authorization URL for user authentication."""
         try:
-            flow = Flow.from_client_config(CLIENT_CONFIG, SCOPES)
+            client_config = self.load_client_config()
+            if not client_config:
+                return None
+            
+            flow = Flow.from_client_config(client_config, SCOPES)
             flow.redirect_uri = "http://localhost:8501"
             
             auth_url, _ = flow.authorization_url(
