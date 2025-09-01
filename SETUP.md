@@ -24,11 +24,9 @@ To use the GCal Extractor, you need to set up Google OAuth credentials. Follow t
    - Choose "External" user type
    - Fill in required fields (App name, User support email, Developer contact)
    - Add your email to test users
-4. For Application type, select "Web application"
-5. Add authorized redirect URIs:
-   - `http://localhost:8501`
-6. Click "Create"
-7. Download the JSON file or copy the Client ID and Client Secret
+4. For Application type, select "Desktop application"
+5. Click "Create"
+6. Download the JSON file or copy the Client ID and Client Secret
 
 ### 4. Configure the Application
 
@@ -36,12 +34,11 @@ Create a file named `credentials.json` in the project root with your OAuth crede
 
 ```json
 {
-  "web": {
+  "installed": {
     "client_id": "your_client_id_here.apps.googleusercontent.com",
     "client_secret": "your_client_secret_here",
     "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-    "token_uri": "https://oauth2.googleapis.com/token",
-    "redirect_uris": ["http://localhost:8501"]
+    "token_uri": "https://oauth2.googleapis.com/token"
   }
 }
 ```
@@ -61,10 +58,11 @@ streamlit run streamlit_app.py
 ### 6. First Time Authentication
 
 1. Click "Connect to Google Calendar"
-2. You'll be redirected to Google's authorization page
+2. A browser window will automatically open for Google authentication
 3. Sign in and grant permissions
-4. You'll be redirected back to the app
-5. Select your calendars and start generating reports
+4. The browser will show a success message
+5. Return to the Streamlit app - you should now be connected
+6. Select your calendars and start generating reports
 
 ## Troubleshooting
 

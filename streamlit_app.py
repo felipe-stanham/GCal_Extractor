@@ -72,26 +72,14 @@ def render_oauth_flow():
     
     auth = st.session_state.auth
     
-    # Check for OAuth callback in URL parameters
-    query_params = st.experimental_get_query_params()
-    if 'code' in query_params:
-        with st.spinner("Processing authentication..."):
-            if auth.handle_oauth_callback(query_params['code'][0]):
-                st.success("Authentication successful!")
-                # Clear the code from URL
-                st.experimental_set_query_params()
+    # Show connect button for desktop OAuth flow
+    if st.button("🔗 Connect to Google Calendar", type="primary", use_container_width=True):
+        with st.spinner("Opening browser for authentication..."):
+            st.info("A browser window will open for Google authentication. Please complete the authorization process.")
+            if auth.authenticate_desktop():
                 st.experimental_rerun()
             else:
                 st.error("Authentication failed. Please try again.")
-    
-    # Show connect button
-    if st.button("🔗 Connect to Google Calendar", type="primary", use_container_width=True):
-        auth_url = auth.get_authorization_url()
-        if auth_url:
-            st.markdown(f"[Click here to authorize access]({auth_url})")
-            st.info("After authorizing, you'll be redirected back to this page.")
-        else:
-            st.error("Unable to generate authorization URL. Please check your configuration.")
 
 def render_calendar_setup():
     """Render calendar selection and configuration."""

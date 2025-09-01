@@ -7,7 +7,7 @@ import json
 import os
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import Flow
+from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 import streamlit as st
 
@@ -90,28 +90,32 @@ class GoogleAuth:
             st.error(f"Error loading credentials file: {e}")
             return None
     
-    def get_authorization_url(self):
-        """Get OAuth authorization URL for user authentication."""
+    def authenticate_desktop(self):
+        """Perform desktop OAuth authentication flow."""
         try:
             client_config = self.load_client_config()
             if not client_config:
-                return None
+                return False
             
-            flow = Flow.from_client_config(client_config, SCOPES)
-            flow.redirect_uri = "http://localhost:8501"
+            # Use InstalledAppFlow for desktop authentication
+            flow = InstalledAppFlow.from_client_config(client_config, SCOPES)
             
-            auth_url, _ = flow.authorization_url(
-                access_type='offline',
-                include_granted_scopes='true'
-            )
+            # Run local server for OAuth callback
+            self.credentials = flow.run_local_server(port=0)
             
-            # Store flow in session state for later use
-            st.session_state['oauth_flow'] = flow
-            
-            return auth_url
+            # Save credentials
+            if self.save_credentials():
+                st.success("Authentication successful!")
+                return True
+            else:
+                st.error("Failed to save credentials")
+                return False
+                
         except Exception as e:
-            st.error(f"Error generating authorization URL: {e}")
-            return None
+            st.error(f"Error during authentication: {e}")
+            import traceback
+            st.error(f"Full error: {traceback.format_exc()}")
+            return False
     
     def handle_oauth_callback(self, authorization_code):
         """Handle OAuth callback and exchange code for tokens."""
@@ -121,10 +125,23 @@ class GoogleAuth:
                 return False
             
             flow = st.session_state['oauth_flow']
+            
+            # Debug information
+            st.write(f"Debug - Authorization code received: {authorization_code[:20]}...")
+            
             flow.fetch_token(code=authorization_code)
             
             self.credentials = flow.credentials
-            self.save_credentials()
+            
+            # Debug: Check if credentials are valid
+            st.write(f"Debug - Credentials valid: {self.credentials.valid}")
+            st.write(f"Debug - Token exists: {bool(self.credentials.token)}")
+            
+            if self.save_credentials():
+                st.success("Credentials saved successfully!")
+            else:
+                st.error("Failed to save credentials")
+                return False
             
             # Clean up session state
             del st.session_state['oauth_flow']
@@ -132,6 +149,8 @@ class GoogleAuth:
             return True
         except Exception as e:
             st.error(f"Error handling OAuth callback: {e}")
+            import traceback
+            st.error(f"Full error: {traceback.format_exc()}")
             return False
     
     def logout(self):
