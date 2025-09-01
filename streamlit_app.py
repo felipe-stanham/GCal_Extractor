@@ -73,14 +73,14 @@ def render_oauth_flow():
     auth = st.session_state.auth
     
     # Check for OAuth callback in URL parameters
-    query_params = st.query_params
+    query_params = st.experimental_get_query_params()
     if 'code' in query_params:
         with st.spinner("Processing authentication..."):
-            if auth.handle_oauth_callback(query_params['code']):
+            if auth.handle_oauth_callback(query_params['code'][0]):
                 st.success("Authentication successful!")
                 # Clear the code from URL
-                st.query_params.clear()
-                st.rerun()
+                st.experimental_set_query_params()
+                st.experimental_rerun()
             else:
                 st.error("Authentication failed. Please try again.")
     
