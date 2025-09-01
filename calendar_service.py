@@ -168,3 +168,59 @@ class CalendarService:
     def get_calendar_display_names(self) -> Dict[str, str]:
         """Get mapping of calendar IDs to display names."""
         return {cal['id']: cal['name'] for cal in self.selected_calendars}
+    
+    def fetch_events(self, year: int, month: int) -> Optional[List[Dict]]:
+        """Fetch calendar events for specified month and year."""
+        service = self.auth.get_calendar_service()
+        if not service:
+            return None
+        
+        try:
+            # Calculate date range for the month
+            from datetime import datetime, timedelta
+            import calendar as cal_module
+            
+            # First day of the month
+            start_date = datetime(year, month, 1)
+            
+            # Last day of the month
+            last_day = cal_module.monthrange(year, month)[1]
+            end_date = datetime(year, month, last_day, 23, 59, 59)
+            
+            # Convert to RFC3339 format
+            time_min = start_date.isoformat() + 'Z'
+            time_max = end_date.isoformat() + 'Z'
+            
+            all_events = []
+            
+            # Fetch events from all selected calendars
+            for calendar in self.selected_calendars:
+                calendar_id = calendar['id']
+                calendar_name = calendar['name']
+                
+                try:
+                    events_result = service.events().list(
+                        calendarId=calendar_id,
+                        timeMin=time_min,
+                        timeMax=time_max,
+                        singleEvents=True,
+                        orderBy='startTime'
+                    ).execute()
+                    
+                    events = events_result.get('items', [])
+                    
+                    # Add calendar info to each event
+                    for event in events:
+                        event['calendar_id'] = calendar_id
+                        event['calendar_name'] = calendar_name
+                        all_events.append(event)
+                        
+                except Exception as e:
+                    st.error(f"Error fetching events from calendar '{calendar_name}': {e}")
+                    continue
+            
+            return all_events
+            
+        except Exception as e:
+            st.error(f"Error fetching calendar events: {e}")
+            return None

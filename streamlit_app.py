@@ -6,6 +6,8 @@ Psychology consultation frequency analyzer for Google Calendar events.
 import streamlit as st
 from google_auth import GoogleAuth
 from calendar_service import CalendarService
+from data_processor import DataProcessor
+from excel_generator import ExcelGenerator
 
 # Page configuration
 st.set_page_config(
@@ -21,6 +23,10 @@ def init_session_state():
         st.session_state.auth = GoogleAuth()
     if 'calendar_service' not in st.session_state:
         st.session_state.calendar_service = CalendarService(st.session_state.auth)
+    if 'data_processor' not in st.session_state:
+        st.session_state.data_processor = DataProcessor()
+    if 'excel_generator' not in st.session_state:
+        st.session_state.excel_generator = ExcelGenerator()
 
 def render_header():
     """Render application header."""
@@ -99,20 +105,22 @@ def render_calendar_setup():
 def render_main_interface():
     """Render main application interface when authenticated."""
     calendar_service = st.session_state.calendar_service
+    data_processor = st.session_state.data_processor
+    excel_generator = st.session_state.excel_generator
     
     # Calendar configuration section
     render_calendar_setup()
     
     st.divider()
     
-    # Report generation section (placeholder for now)
+    # Report generation section
     st.subheader("📊 Generate Report")
     
     if not calendar_service.has_selected_calendars():
         st.warning("Please select at least one calendar to generate reports.")
         return
     
-    # Month/Year selection (placeholder)
+    # Month/Year selection
     col1, col2 = st.columns(2)
     
     with col1:
@@ -133,11 +141,75 @@ def render_main_interface():
             index=4  # Default to 2024
         )
     
-    # Generate button (placeholder)
-    if st.button("📈 Generate Report", type="primary", disabled=True):
-        st.info("Report generation will be implemented in the next scope.")
-    
-    st.info("🚧 Report generation functionality will be available in the next development phase.")
+    # Generate button
+    if st.button("📈 Generate Report", type="primary", use_container_width=True):
+        with st.spinner("Fetching calendar events..."):
+            # Fetch events
+            events = calendar_service.fetch_events(year, month)
+            
+            if not events:
+                st.error("No events found for the selected period or error fetching events.")
+                return
+            
+            if len(events) == 0:
+                st.warning(f"No consultation events found for {month:02d}/{year}.")
+                return
+            
+            st.success(f"Found {len(events)} events. Processing data...")
+        
+        with st.spinner("Processing patient data..."):
+            # Process events into structured data
+            processed_data = data_processor.process_events(events)
+            
+            if not processed_data:
+                st.warning("No valid patient consultations found in the events.")
+                return
+            
+            # Generate report data
+            totales_data = data_processor.generate_totales_data(processed_data)
+            detalle_data = data_processor.generate_detalle_data(processed_data)
+            
+            st.success("Data processed successfully!")
+        
+        with st.spinner("Generating Excel report..."):
+            # Generate Excel file
+            filepath = excel_generator.generate_excel_report(
+                totales_data, detalle_data, year, month
+            )
+            
+            if filepath:
+                st.success("Excel report generated successfully!")
+                
+                # Show report summary
+                summary = excel_generator.get_report_summary(totales_data, detalle_data)
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Total Patients", summary['total_patients'])
+                with col2:
+                    st.metric("Total Sessions", summary['total_sessions'])
+                with col3:
+                    st.metric("Calendars", summary['calendars_count'])
+                
+                # Calendar breakdown
+                st.subheader("📋 Report Summary")
+                for calendar_name, stats in summary['calendar_stats'].items():
+                    st.write(f"**{calendar_name}**: {stats['patients']} patients, {stats['sessions']} sessions")
+                
+                # Download button
+                with open(filepath, 'rb') as file:
+                    st.download_button(
+                        label="📥 Download Excel Report",
+                        data=file.read(),
+                        file_name=filepath.split('/')[-1],
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        type="primary",
+                        use_container_width=True
+                    )
+                
+                st.info(f"Report saved as: `{filepath}`")
+            else:
+                st.error("Failed to generate Excel report.")
 
 def main():
     """Main application entry point."""
